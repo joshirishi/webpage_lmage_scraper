@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Structure Visualizer</title>
+
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+    <!-- Styles -->
+    <style>
+        body {
+            font-family: 'Arial, sans-serif';
+            margin: 20px;
+        }
+
+        #visualization {
+            margin-top: 20px;
+        }
+
+        .link {
+            fill: none;
+            stroke: #555;
+            stroke-opacity: 0.4;
+            stroke-width: 2px;
+        }
+
+        .node {
+            cursor: pointer;
+        }
+
+        .node rect {
+            width: 10px;
+            height: 10px;
+            fill: steelblue;
+        }
+
+        .node text {
+            font-size: 12px;
+            text-anchor: middle;
+            dy: 3px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Website Structure Visualizer</h1>
+        <label for="urlInput">Enter website URL:</label>
+        <input type="url" id="urlInput" placeholder="https://example.com">
+        <button onclick="startScraping()">Visualize</button>
+    </header>
+
+    <div id="visualization"></div>
+
+    <script>
+        function startScraping() {
+            const url = document.getElementById('urlInput').value;
+            fetch(`/scrape?url=${url}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Clear previous visualization
+                    document.getElementById('visualization').innerHTML = '';
+
+                    // Set up the D3 visualization
+                    const svg = d3.select("#visualization").append("svg")
+                        .attr("width", window.innerWidth)
+                        .attr("height", window.innerHeight - 100);
+                    
+                    const root = d3.hierarchy(data);
+                    const treeLayout = d3.tree().size([window.innerWidth, window.innerHeight - 100]);
+                    treeLayout(root);
+
+                    // Draw links (lines)
+                    svg.selectAll('.link')
+                        .data(root.descendants().slice(1))
+                        .enter().append('path')
+                        .attr('class', 'link')
+                        .attr('d', d => {
+                            return "M" + d.x + "," + d.y
+                                + "C" + d.x + "," + (d.y + d.parent.y) / 2
+                                + " " + d.parent.x + "," +  (d.y + d.parent.y) / 2
+                                + " " + d.parent.x + "," + d.parent.y;
+                        });
+
+                    // Draw nodes (squares)
+                    const nodes = svg.selectAll('.node')
+                        .data(root.descendants())
+                        .enter().append('g')
+                        .attr('class', d => "node" + (d.children ? " node--internal" : " node--leaf"))
+                        .attr('transform', d => "translate(" + d.x + "," + d.y + ")");
+
+                    nodes.append('rect')
+                        .attr('width', 10)
+                        .attr('height', 10)
+                        .attr('x', -5)
+                        .attr('y', -5);
+
+                    nodes.append('text')
+                        .attr('dy', 3)
+                        .style('text-anchor', 'middle')
+                        .text(d => d.data.name);
+                })
+                .catch(error => {
+                    console.error("Failed to fetch website structure:", error);
+                });
+        }
+    </script>
+</body>
+</html>
